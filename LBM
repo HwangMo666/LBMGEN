@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>메트로폴리스 + 음식 + 장소 랜덤 생성기 (중복 없음 / CSV / 한·영)</title>
+<style>
+  :root{
+    --bg:#0b0c10; --fg:#e9eef2; --muted:#a8b3bd; --card:#12141a; --line:#23262e; --acc:#6aa0ff;
+  }
+  *{box-sizing:border-box}
+  body{font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans KR", Apple SD Gothic Neo, "Malgun Gothic", sans-serif; background:var(--bg); color:var(--fg); margin:0}
+  header{max-width:980px; margin:36px auto 12px; padding:0 20px}
+  h1{font-size:24px; margin:0 0 8px;}
+  p.lead{color:var(--muted); margin:0}
+  main{max-width:980px; margin:0 auto 60px; padding:0 20px;}
+  .panel{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px;}
+  .grid{display:grid; gap:16px}
+  .grid.cols-2{grid-template-columns: 1fr 1fr}
+  .grid.cols-3{grid-template-columns: repeat(3, 1fr)}
+  @media (max-width: 900px){ .grid.cols-3{grid-template-columns: 1fr} .grid.cols-2{grid-template-columns: 1fr}}
+  textarea, input, select{width:100%; background:#0f1117; color:var(--fg); border:1px solid var(--line); border-radius:12px; padding:10px 12px; font-size:14px}
+  label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px}
+  .row{display:grid; grid-template-columns: 1fr auto auto auto; gap:10px; align-items:center}
+  .btn{appearance:none; border:1px solid var(--line); background:#121828; color:var(--fg); padding:10px 14px; border-radius:12px; cursor:pointer}
+  .btn:hover{border-color:#2c3342}
+  .btn.primary{background:linear-gradient(180deg, #2b63ff, #2851d4); border-color:#1e3ea3}
+  .btn.soft{background:#161b28}
+  .inline{display:inline-flex; gap:8px; align-items:center}
+  .hint{font-size:12px; color:var(--muted)}
+  .stat{font-variant-numeric: tabular-nums; font-size:13px; color:var(--muted)}
+  .cards{display:grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap:12px}
+  .card{border:1px solid var(--line); background:linear-gradient(180deg,#0e1118,#0c1016); border-radius:14px; padding:12px}
+  .big{font-weight:600; font-size:16px}
+  .sub{font-size:12px; color:var(--muted); margin-top:4px}
+  .switch{display:inline-flex; gap:8px; align-items:center}
+  .switch input{width:auto}
+  .sep{width:90px}
+</style>
+<body>
+  <header>
+    <h1>메트로폴리스 + 음식 + 장소 랜덤 생성기</h1>
+    <p class="lead">중복 없는 조합 보장 · CSV 내보내기 · 한/영 자동 변환</p>
+  </header>
+
+  <main class="grid" style="gap:24px;">
+    <section class="panel">
+      <div class="grid cols-3">
+        <div>
+          <label>메트로폴리스 목록 (쉼표 또는 줄바꿈 구분)</label>
+          <textarea id="cities" rows="4">런던, 파리, 뉴욕, 도쿄, 서울, 상하이, 홍콩, 베를린, 이스탄불, 두바이, 멕시코시티, 상파울루, 뭄바이, 방콕, 싱가포르, LA, 시카고, 토론토, 시드니, 로마</textarea>
+        </div>
+        <div>
+          <label>음식 목록</label>
+          <textarea id="foods" rows="4">베이글, 라멘, 타코, 케밥, 파스타, 스시, 커리, 비빔밥, 피자, 크루아상, 딤섬, 팬케이크, 바클라바, 샤와르마, 파에야, 가츠산도, 쌀국수, 김밥, 버거, 만두</textarea>
+        </div>
+        <div>
+          <label>장소 이름 목록</label>
+          <textarea id="places" rows="4">뮤지엄, 스테이션, 마켓, 하우스, 랩, 가든, 팩토리, 바, 카페, 포럼, 홀, 스튜디오, 아케이드, 파크, 하버, 스트리트, 브리지, 타워, 아트센터, 라운지</textarea>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:14px;">
+        <div class="inline">
+          <label for="count" style="margin:0">개수</label>
+          <input id="count" type="number" min="1" value="24" style="width:120px" />
+        </div>
+        <div class="inline">
+          <label for="sep" style="margin:0">구분자</label>
+          <input id="sep" class="sep" value="+" />
+        </div>
+        <div class="switch">
+          <input id="showEN" type="checkbox" checked />
+          <label for="showEN" style="margin:0">영문 병기 표시</label>
+        </div>
+        <button class="btn primary" id="gen">생성</button>
+      </div>
+      <div class="inline" style="gap:16px; margin-top:8px">
+        <span class="stat">가능한 총 조합: <span id="total">0</span></span>
+        <span class="stat">이번에 생성: <span id="generated">0</span></span>
+        <span class="stat">남은 고유 조합: <span id="remaining">0</span></span>
+      </div>
+      <p class="hint" style="margin-top:6px">※ 중복 없는 조합을 보장합니다. 요청 개수가 총 조합 수를 넘어가면 총 조합 수로 자동 제한됩니다.</p>
+    </section>
+
+    <section class="panel">
+      <div class="inline" style="gap:8px; flex-wrap:wrap">
+        <button class="btn soft" id="copy">전체 복사</button>
+        <button class="btn soft" id="exportCSV">CSV로 저장</button>
+      </div>
+      <div id="out" class="cards" style="margin-top:12px"></div>
+    </section>
+  </main>
+
+<script>
+// --- 작은 유틸 ---
+const qs = s => document.querySelector(s);
+const out = qs('#out');
+const totalEl = qs('#total');
+const genEl = qs('#generated');
+const remainEl = qs('#remaining');
+
+function parseList(text){
+  return text.split(/[,，\n]/).map(s=>s.trim()).filter(Boolean);
+}
+function titleCase(s){
+  return s.replace(/(^|[\s\-_/])([a-zA-Z])/g, (_,a,b)=>a + b.toUpperCase());
+}
+
+// --- 간단 번역 사전 (확장 가능) ---
+const dictCity = new Map([
+  ['런던','London'],['파리','Paris'],['뉴욕','New York'],['도쿄','Tokyo'],['서울','Seoul'],
+  ['상하이','Shanghai'],['홍콩','Hong Kong'],['베를린','Berlin'],['이스탄불','Istanbul'],['두바이','Dubai'],
+  ['멕시코시티','Mexico City'],['상파울루','São Paulo'],['뭄바이','Mumbai'],['방콕','Bangkok'],['싱가포르','Singapore'],
+  ['LA','LA'],['시카고','Chicago'],['토론토','Toronto'],['시드니','Sydney'],['로마','Rome']
+]);
+const dictFood = new Map([
+  ['베이글','Bagel'],['라멘','Ramen'],['타코','Taco'],['케밥','Kebab'],['파스타','Pasta'],
+  ['스시','Sushi'],['커리','Curry'],['비빔밥','Bibimbap'],['피자','Pizza'],['크루아상','Croissant'],
+  ['딤섬','Dim Sum'],['팬케이크','Pancake'],['바클라바','Baklava'],['샤와르마','Shawarma'],['파에야','Paella'],
+  ['가츠산도','Katsu Sando'],['쌀국수','Pho'],['김밥','Gimbap'],['버거','Burger'],['만두','Dumpling']
+]);
+const dictPlace = new Map([
+  ['뮤지엄','Museum'],['스테이션','Station'],['마켓','Market'],['하우스','House'],['랩','Lab'],
+  ['가든','Garden'],['팩토리','Factory'],['바','Bar'],['카페','Cafe'],['포럼','Forum'],
+  ['홀','Hall'],['스튜디오','Studio'],['아케이드','Arcade'],['파크','Park'],['하버','Harbor'],
+  ['스트리트','Street'],['브리지','Bridge'],['타워','Tower'],['아트센터','Art Center'],['라운지','Lounge']
+]);
+
+function toEN(korean, dict){
+  if(!korean) return '';
+  // 양방향 가능: 이미 영어면 깔끔화만
+  const isAscii = /^[\x00-\x7F]+$/.test(korean);
+  if(isAscii) return titleCase(korean);
+  return dict.get(korean) || korean; // 미등록 항목은 원문 유지
+}
+
+// --- 모든 조합 생성 & 셔플 (중복 없는 보장) ---
+function allCombos(cities, foods, places, sep){
+  const combos = [];
+  for(const c of cities){
+    for(const f of foods){
+      for(const p of places){
+        combos.push({c,f,p, str:`${c}${sep}${f}${sep}${p}`});
+      }
+    }
+  }
+  // Fisher-Yates shuffle
+  for(let i=combos.length-1; i>0; i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [combos[i], combos[j]] = [combos[j], combos[i]];
+  }
+  return combos;
+}
+
+// --- CSV 유틸 ---
+function toCSV(rows){
+  const esc = v => '"' + String(v).replace(/"/g,'""') + '"';
+  return rows.map(r=>r.map(esc).join(',')).join('\n');
+}
+function download(filename, text){
+  const blob = new Blob([text], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.style.display='none';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+}
+
+// --- 상태 ---
+let lastCombos = []; // 마지막 생성된 원천 조합 (객체 형태)
+
+function updateTotals(cities, foods, places, generated){
+  const total = cities.length * foods.length * places.length;
+  totalEl.textContent = total.toLocaleString();
+  genEl.textContent = generated.toLocaleString();
+  remainEl.textContent = Math.max(0, total - generated).toLocaleString();
+}
+
+function render(results, sep, showEN){
+  out.innerHTML = results.map(obj => {
+    const cEN = toEN(obj.c, dictCity);
+    const fEN = toEN(obj.f, dictFood);
+    const pEN = toEN(obj.p, dictPlace);
+    const en  = `${cEN}${sep}${fEN}${sep}${pEN}`;
+    const ko  = obj.str;
+    const sub = showEN ? `<div class="sub">${en}</div>` : '';
+    return `<div class="card"><div class="big">${ko}</div>${sub}</div>`;
+  }).join('');
+}
+
+function generateOnce(){
+  const cities = parseList(qs('#cities').value);
+  const foods  = parseList(qs('#foods').value);
+  const places = parseList(qs('#places').value);
+  const nReq   = Math.max(1, parseInt(qs('#count').value||'1',10));
+  const sep    = qs('#sep').value || '+';
+  const showEN = qs('#showEN').checked;
+
+  const total = cities.length * foods.length * places.length;
+  if(total === 0){ out.innerHTML = '<div class="hint">리스트를 입력하세요.</div>'; updateTotals(cities, foods, places, 0); return; }
+
+  const combos = allCombos(cities, foods, places, sep);
+  const n = Math.min(nReq, combos.length);
+  lastCombos = combos.slice(0, n);
+
+  updateTotals(cities, foods, places, n);
+  render(lastCombos, sep, showEN);
+}
+
+qs('#gen').addEventListener('click', generateOnce);
+qs('#showEN').addEventListener('change', ()=>{
+  const sep = qs('#sep').value || '+';
+  render(lastCombos, sep, qs('#showEN').checked);
+});
+
+qs('#copy').addEventListener('click', async ()=>{
+  if(lastCombos.length===0){ alert('먼저 생성하세요!'); return; }
+  const sep = qs('#sep').value || '+';
+  const lines = lastCombos.map(o=>o.str + (qs('#showEN').checked ? `\n${toEN(o.c,dictCity)}${sep}${toEN(o.f,dictFood)}${sep}${toEN(o.p,dictPlace)}` : ''));
+  const text = lines.join('\n');
+  try{ await navigator.clipboard.writeText(text); alert('복사 완료!'); }
+  catch{ alert('복사 실패. 수동으로 복사해주세요.'); }
+});
+
+qs('#exportCSV').addEventListener('click', ()=>{
+  if(lastCombos.length===0){ alert('먼저 생성하세요!'); return; }
+  const sep = qs('#sep').value || '+';
+  const rows = [["ko_combo","en_combo","city_ko","food_ko","place_ko","city_en","food_en","place_en"]];
+  for(const o of lastCombos){
+    const cEN = toEN(o.c, dictCity);
+    const fEN = toEN(o.f, dictFood);
+    const pEN = toEN(o.p, dictPlace);
+    const ko = o.str;
+    const en = `${cEN}${sep}${fEN}${sep}${pEN}`;
+    rows.push([ko, en, o.c, o.f, o.p, cEN, fEN, pEN]);
+  }
+  const csv = toCSV(rows);
+  const now = new Date();
+  const iso = now.toISOString().replace(/[:T]/g,'-').slice(0,19);
+  download(`combos_${iso}.csv`, csv);
+});
+
+// 초기 총합 갱신
+(function init(){
+  updateTotals(parseList(qs('#cities').value), parseList(qs('#foods').value), parseList(qs('#places').value), 0);
+})();
+</script>
+</body>
+</html>
